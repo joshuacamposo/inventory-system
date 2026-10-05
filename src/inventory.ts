@@ -32,12 +32,22 @@ export type InventoryState = {
 };
 
 export const locations: WarehouseLocation[] = [
-  { id: "north-dc", name: "North DC", address: "Portland, OR", binCount: 48 },
-  { id: "east-hub", name: "East Hub", address: "Columbus, OH", binCount: 32 },
+  {
+    id: "north-dc",
+    name: "North DC",
+    address: "Iligan City, Philippines",
+    binCount: 48,
+  },
+  {
+    id: "east-hub",
+    name: "East Hub",
+    address: "Iligan City, Philippines",
+    binCount: 32,
+  },
   {
     id: "south-crossdock",
     name: "South Crossdock",
-    address: "Austin, TX",
+    address: "Iligan City, Philippines",
     binCount: 18,
   },
 ];
@@ -47,8 +57,8 @@ const initialItems: InventoryItem[] = [
     id: "dock-01",
     sku: "DCK-100",
     name: "USB-C Dock",
-    category: "Mga aksesorya sa kompyuter",
-    unit: "piraso",
+    category: "Computer accessories",
+    unit: "each",
     reorderAt: 24,
     unitCost: 42.5,
     quantities: { "north-dc": 42, "east-hub": 28, "south-crossdock": 8 },
@@ -57,8 +67,8 @@ const initialItems: InventoryItem[] = [
     id: "scanner-02",
     sku: "SCN-220",
     name: "Wireless Scanner",
-    category: "Mga ekipo sa bodega",
-    unit: "piraso",
+    category: "Warehouse equipment",
+    unit: "each",
     reorderAt: 12,
     unitCost: 86,
     quantities: { "north-dc": 16, "east-hub": 9, "south-crossdock": 0 },
@@ -67,8 +77,8 @@ const initialItems: InventoryItem[] = [
     id: "cable-03",
     sku: "CBL-014",
     name: "USB-C Cable, 1 m",
-    category: "Mga aksesorya sa kompyuter",
-    unit: "piraso",
+    category: "Computer accessories",
+    unit: "each",
     reorderAt: 40,
     unitCost: 4.25,
     quantities: { "north-dc": 118, "east-hub": 72, "south-crossdock": 34 },
@@ -77,8 +87,8 @@ const initialItems: InventoryItem[] = [
     id: "label-04",
     sku: "LBL-400",
     name: "Thermal Labels, 4 x 6",
-    category: "Mga gamit sa pagputos",
-    unit: "rolyo",
+    category: "Packing supplies",
+    unit: "roll",
     reorderAt: 20,
     unitCost: 7.8,
     quantities: { "north-dc": 18, "east-hub": 24, "south-crossdock": 10 },
@@ -87,8 +97,8 @@ const initialItems: InventoryItem[] = [
     id: "scanner-batt-05",
     sku: "BAT-018",
     name: "Scanner Battery Pack",
-    category: "Mga ekipo sa bodega",
-    unit: "piraso",
+    category: "Warehouse equipment",
+    unit: "each",
     reorderAt: 10,
     unitCost: 19.4,
     quantities: { "north-dc": 31, "east-hub": 13, "south-crossdock": 7 },
@@ -97,19 +107,19 @@ const initialItems: InventoryItem[] = [
 
 const storageKey = "stockroom-inventory-v1";
 const savedCategoryTranslations: Record<string, string> = {
-  "Computer accessories": "Mga aksesorya sa kompyuter",
-  "Warehouse equipment": "Mga ekipo sa bodega",
-  "Packing supplies": "Mga gamit sa pagputos",
+  "Mga aksesorya sa kompyuter": "Computer accessories",
+  "Mga ekipo sa bodega": "Warehouse equipment",
+  "Mga gamit sa pagputos": "Packing supplies",
 };
 const savedUnitTranslations: Record<string, string> = {
-  each: "piraso",
-  box: "kahon",
-  case: "kaso",
-  roll: "rolyo",
+  piraso: "each",
+  kahon: "box",
+  kaso: "case",
+  rolyo: "roll",
 };
 const savedReferenceTranslations: Record<string, string> = {
-  "Initial inventory": "Imbentaryo sa sinugdanan",
-  "Manual receipt": "Manwal nga pagdawat",
+  "Imbentaryo sa sinugdanan": "Initial inventory",
+  "Manwal nga pagdawat": "Manual receipt",
 };
 
 function makeOpeningMovements(): StockMovement[] {
@@ -124,7 +134,7 @@ function makeOpeningMovements(): StockMovement[] {
           locationId: location.id,
           kind: "Opening balance" as const,
           quantity,
-          reference: "Imbentaryo sa sinugdanan",
+          reference: "Initial inventory",
           createdAt: new Date(Date.now() - 86_400_000 * 2).toISOString(),
         },
       ];
@@ -245,13 +255,13 @@ export function receiveStock(
   reference: string,
 ): InventoryState {
   if (!Number.isInteger(quantity) || quantity <= 0) {
-    throw new Error("Pagsulod og tibuok nga gidaghanon nga labaw sa sero.");
+    throw new Error("Enter a whole quantity greater than zero.");
   }
 
   const item = state.items.find((candidate) => candidate.id === itemId);
-  if (!item) throw new Error("Pilia ang butang sa imbentaryo.");
+  if (!item) throw new Error("Select an item in the inventory.");
   if (!locations.some((location) => location.id === locationId)) {
-    throw new Error("Pilia ang lokasyon sa bodega.");
+    throw new Error("Select a warehouse location.");
   }
 
   return {
@@ -273,7 +283,7 @@ export function receiveStock(
         locationId,
         kind: "Receipt received",
         quantity,
-        reference: reference.trim() || "Manwal nga pagdawat",
+        reference: reference.trim() || "Manual receipt",
         createdAt: new Date().toISOString(),
       },
       ...state.movements,
@@ -290,12 +300,11 @@ export function addInventoryItem(
 ): InventoryState {
   const sku = input.sku.trim().toUpperCase();
   const name = input.name.trim();
-  if (!sku || !name)
-    throw new Error("Kinahanglan ang SKU ug ngalan sa butang.");
+  if (!sku || !name) throw new Error("SKU and item name are required.");
   if (
     state.items.some((item) => item.sku.toLowerCase() === sku.toLowerCase())
   ) {
-    throw new Error("Gigamit na kana nga SKU.");
+    throw new Error("That SKU is already in use.");
   }
   const item: InventoryItem = {
     ...input,

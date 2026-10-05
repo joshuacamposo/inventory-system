@@ -37,47 +37,31 @@ import {
 type Page = "overview" | "inventory" | "movements";
 
 const movementNames = {
-  "Receipt received": "Pagdawat sa stock",
-  "Opening balance": "Pasiunang balanse sa stock",
-  "Count adjustment": "Koreksiyon sa ihap",
+  "Receipt received": "Receipt received",
+  "Opening balance": "Opening balance",
+  "Count adjustment": "Count adjustment",
 } as const;
 
 const money = new Intl.NumberFormat("en-US", {
   style: "currency",
-  currency: "USD",
+  currency: "PHP",
   maximumFractionDigits: 0,
 });
 
-const bisayaMonths = [
-  "Enero",
-  "Pebrero",
-  "Marso",
-  "Abril",
-  "Mayo",
-  "Hunyo",
-  "Hulyo",
-  "Agosto",
-  "Setyembre",
-  "Oktubre",
-  "Nobyembre",
-  "Disyembre",
-];
-
-function formatBisayaDateTime(date: Date): string {
-  const hour = date.getHours();
-  const hour12 = hour % 12 || 12;
-  const minute = String(date.getMinutes()).padStart(2, "0");
-  const dayPeriod =
-    hour < 12 ? "sa buntag" : hour < 18 ? "sa hapon" : "sa gabii";
-  return `${date.getDate()} ${bisayaMonths[date.getMonth()]}, ${hour12}:${minute} ${dayPeriod}`;
-}
+const dateTime = new Intl.DateTimeFormat("en-PH", {
+  timeZone: "Asia/Manila",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
 
 function App() {
   const [inventory, setInventory] = useState<InventoryState>(loadInventory);
   const [page, setPage] = useState<Page>("inventory");
   const [locationId, setLocationId] = useState("north-dc");
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("Tanang kategorya");
+  const [category, setCategory] = useState("All categories");
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [receiveOpen, setReceiveOpen] = useState(false);
   const [receiveItemId, setReceiveItemId] = useState<string | undefined>();
@@ -99,7 +83,7 @@ function App() {
   )!;
   const categories = useMemo(
     () => [
-      "Tanang kategorya",
+      "All categories",
       ...new Set(inventory.items.map((item) => item.category)),
     ],
     [inventory.items],
@@ -111,7 +95,7 @@ function App() {
           .toLowerCase()
           .includes(query.toLowerCase());
         const matchesCategory =
-          category === "Tanang kategorya" || item.category === category;
+          category === "All categories" || item.category === category;
         const matchesStock =
           !lowStockOnly || (item.quantities[locationId] ?? 0) <= item.reorderAt;
         return matchesText && matchesCategory && matchesStock;
@@ -151,12 +135,10 @@ function App() {
         (item) => item.id === String(form.get("itemId")),
       )?.name;
       setReceiveOpen(false);
-      setNotice(`Malampusong nadawat ang stock sa ${itemName ?? "butang"}`);
+      setNotice(`${itemName ?? "Stock"} received successfully`);
     } catch (error) {
       setNotice(
-        error instanceof Error
-          ? error.message
-          : "Wala marekord ang pagdawat sa stock",
+        error instanceof Error ? error.message : "Could not record receipt",
       );
     }
   }
@@ -181,11 +163,9 @@ function App() {
         }),
       );
       setAddItemOpen(false);
-      setNotice("Naidugang na ang butang sa imbentaryo");
+      setNotice("Item added to inventory");
     } catch (error) {
-      setNotice(
-        error instanceof Error ? error.message : "Wala maidugang ang butang",
-      );
+      setNotice(error instanceof Error ? error.message : "Could not add item");
     }
   }
 
@@ -193,13 +173,13 @@ function App() {
     const rows = [
       [
         "SKU",
-        "Butang",
-        "Kategorya",
-        "Lokasyon",
-        "Kadaghanon",
-        "Yunit",
-        "Limit sa pag-order",
-        "Gasto kada yunit",
+        "Item",
+        "Category",
+        "Location",
+        "Quantity",
+        "Unit",
+        "Reorder at",
+        "Unit cost",
       ],
       ...inventory.items.map((item) => [
         item.sku,
@@ -220,7 +200,7 @@ function App() {
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `imbentaryo-${locationId}.csv`;
+    link.download = `inventory-${locationId}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -240,24 +220,24 @@ function App() {
             stockroom<span className="brand-period">.</span>
           </span>
         </a>
-        <div className="workspace-label">LUGAR SA TRABAHO</div>
+        <div className="workspace-label">WORKSPACE</div>
         <button className="workspace-switcher" type="button">
           <span className="workspace-avatar">N</span>
           <span className="workspace-copy">
             <strong>Northstar Supply</strong>
-            <small>Grupo sa bodega</small>
+            <small>Warehouse team</small>
           </span>
           <ChevronDown size={15} />
         </button>
-        <div className="nav-label">MGA BULUHATON</div>
-        <nav className="main-nav" aria-label="Pangunang nabigasyon">
+        <div className="nav-label">OPERATIONS</div>
+        <nav className="main-nav" aria-label="Main navigation">
           <button
             className={page === "overview" ? "nav-item active" : "nav-item"}
             onClick={() => setPage("overview")}
             type="button"
           >
             <LayoutDashboard size={17} />
-            <span>Kinatibuk-ang tan-aw</span>
+            <span>Overview</span>
           </button>
           <button
             className={page === "inventory" ? "nav-item active" : "nav-item"}
@@ -265,7 +245,7 @@ function App() {
             type="button"
           >
             <Boxes size={17} />
-            <span>Imbentaryo</span>
+            <span>Inventory</span>
             <span className="nav-count">{inventory.items.length}</span>
           </button>
           <button
@@ -274,21 +254,21 @@ function App() {
             type="button"
           >
             <ArrowDownUp size={17} />
-            <span>Kasaysayan sa stock</span>
+            <span>Movement history</span>
           </button>
         </nav>
         <div className="nav-label locations-heading">
-          MGA LOKASYON{" "}
+          LOCATIONS{" "}
           <button
-            aria-label="Idugang og bodega"
+            aria-label="Add warehouse"
             className="icon-button quiet small"
-            title="Idugang og bodega"
+            title="Add warehouse"
             type="button"
           >
             <Plus size={14} />
           </button>
         </div>
-        <nav className="location-nav" aria-label="Pag-navigate sa mga bodega">
+        <nav className="location-nav" aria-label="Facility navigation">
           {locations.map((location) => (
             <button
               className={
@@ -314,14 +294,14 @@ function App() {
         <div className="sidebar-bottom">
           <div className="offline-status">
             <span className="status-dot" />
-            <span>Gitipigan niining device</span>
+            <span>Saved on this device</span>
             <CircleHelp size={14} />
           </div>
           <button className="user-profile" type="button">
             <span className="user-avatar">JD</span>
             <span className="workspace-copy">
               <strong>Jordan Davis</strong>
-              <small>Tagdumala sa bodega</small>
+              <small>Warehouse manager</small>
             </span>
             <MoreHorizontal size={17} />
           </button>
@@ -331,20 +311,20 @@ function App() {
       <main className="main-content">
         <header className="topbar">
           <div className="breadcrumbs">
-            <span>Bodega</span>
+            <span>Warehouse</span>
             <span className="crumb-divider">/</span>
             <strong>
               {page === "movements"
-                ? "Kasaysayan sa stock"
+                ? "Movement history"
                 : page === "overview"
-                  ? "Kinatibuk-ang tan-aw"
-                  : "Imbentaryo"}
+                  ? "Overview"
+                  : "Inventory"}
             </strong>
           </div>
           <div className="topbar-actions">
             <span className="sync-indicator">
               <span className="status-dot" />
-              Gitipigan na ang tanang kausaban
+              All changes saved
             </span>
             <button
               aria-label="Notifications"
@@ -363,17 +343,18 @@ function App() {
           <div className="page-heading-row">
             <div>
               <div className="eyebrow">
-                <Warehouse size={14} /> MGA BULUHATON SA BODEGA
+                <Warehouse size={14} /> WAREHOUSE OPERATIONS
               </div>
               <h1>
                 {page === "movements"
-                  ? "Kasaysayan sa stock"
+                  ? "Movement history"
                   : page === "overview"
-                    ? "Kinatibuk-ang tan-aw"
-                    : "Imbentaryo"}
+                    ? "Overview"
+                    : "Inventory"}
               </h1>
               <p className="page-description">
-                Hibaloa unsay naa, asa kini nahimutang, ug unsay nausab.
+                A clear picture of what’s on hand, where it is, and what
+                changed.
               </p>
             </div>
             <div className="heading-actions">
@@ -383,7 +364,7 @@ function App() {
                 type="button"
               >
                 <Download size={16} />
-                I-export
+                Export
               </button>
               <button
                 className="button button-secondary"
@@ -391,7 +372,7 @@ function App() {
                 type="button"
               >
                 <FilePlus2 size={16} />
-                Idugang og butang
+                Add item
               </button>
               <button
                 className="button button-primary"
@@ -399,7 +380,7 @@ function App() {
                 type="button"
               >
                 <ArrowDownToLine size={16} />
-                Dawata ang stock
+                Receive stock
               </button>
             </div>
           </div>
@@ -410,15 +391,15 @@ function App() {
                 <MapPin size={16} />
               </span>
               <div>
-                <span className="context-label">KASAMTANG LOKASYON</span>
+                <span className="context-label">CURRENT LOCATION</span>
                 <strong>{currentLocation.name}</strong>
               </div>
               <span className="context-address">{currentLocation.address}</span>
             </div>
             <label className="location-select-wrap">
-              <span className="sr-only">Kasamtang nga bodega</span>
+              <span className="sr-only">Current facility</span>
               <select
-                aria-label="Kasamtang nga bodega"
+                aria-label="Current facility"
                 value={locationId}
                 onChange={(event) => setLocationId(event.target.value)}
               >
@@ -433,17 +414,14 @@ function App() {
             <span className="context-divider" />
             <span className="last-updated">
               <Clock3 size={14} />
-              Bag-o lang gi-update
+              Updated just now
             </span>
           </div>
 
-          <section
-            aria-label="Kinatibuk-ang kahimtang sa imbentaryo"
-            className="metric-grid"
-          >
+          <section aria-label="Inventory summary" className="metric-grid">
             <article className="metric-card">
               <div className="metric-top">
-                <span className="metric-label">KATIBUK-ANG STOCK NGA NAA</span>
+                <span className="metric-label">TOTAL UNITS ON HAND</span>
                 <span className="metric-icon green">
                   <PackageCheck size={17} />
                 </span>
@@ -452,26 +430,24 @@ function App() {
                 {locationTotal.toLocaleString()}
               </strong>
               <span className="metric-foot">
-                Sa {inventory.items.length} ka aktibong SKU
+                Across {inventory.items.length} active SKUs
               </span>
             </article>
             <article className="metric-card">
               <div className="metric-top">
-                <span className="metric-label">MGA AKTIBONG BUTANG</span>
+                <span className="metric-label">ACTIVE ITEMS</span>
                 <span className="metric-icon ink">
                   <Boxes size={17} />
                 </span>
               </div>
               <strong className="metric-value">{inventory.items.length}</strong>
               <span className="metric-foot">
-                {categories.length - 1} ka kategorya sa produkto
+                {categories.length - 1} product categories
               </span>
             </article>
             <article className="metric-card metric-alert">
               <div className="metric-top">
-                <span className="metric-label">
-                  UBOS NA SA LIMIT SA PAG-ORDER
-                </span>
+                <span className="metric-label">AT OR BELOW REORDER</span>
                 <span className="metric-icon amber">
                   <TrendingDown size={17} />
                 </span>
@@ -485,12 +461,12 @@ function App() {
                 }}
                 type="button"
               >
-                Tan-awa ang ubos nga stock <ArrowRight size={13} />
+                Review low stock <ArrowRight size={13} />
               </button>
             </article>
             <article className="metric-card">
               <div className="metric-top">
-                <span className="metric-label">BILI SA STOCK</span>
+                <span className="metric-label">STOCK VALUE</span>
                 <span className="metric-icon coral">
                   <Activity size={17} />
                 </span>
@@ -498,9 +474,7 @@ function App() {
               <strong className="metric-value">
                 {money.format(stockValue)}
               </strong>
-              <span className="metric-foot">
-                Base sa natala nga gasto kada yunit
-              </span>
+              <span className="metric-foot">At recorded unit cost</span>
             </article>
           </section>
 
@@ -516,13 +490,13 @@ function App() {
                 <div>
                   <h2>
                     {page === "movements"
-                      ? "Bag-ong mga lihok"
-                      : "Stock matag butang"}
+                      ? "Recent movements"
+                      : "Stock by item"}
                   </h2>
                   <p>
                     {page === "movements"
-                      ? "Mga nadawat ug giusab nga natala niining lokasyon."
-                      : "Kadaghanon sa napiling lokasyon."}
+                      ? "Receipts and adjustments recorded at this location."
+                      : "Quantities at the selected location."}
                   </p>
                 </div>
                 {page === "movements" ? (
@@ -531,13 +505,13 @@ function App() {
                     onClick={() => setPage("inventory")}
                     type="button"
                   >
-                    Balik sa imbentaryo
+                    Back to inventory
                   </button>
                 ) : (
                   <button
-                    aria-label="Uban pang opsyon sa imbentaryo"
+                    aria-label="More inventory options"
                     className="icon-button quiet"
-                    title="Uban pang opsyon sa imbentaryo"
+                    title="More inventory options"
                     type="button"
                   >
                     <MoreHorizontal size={18} />
@@ -552,14 +526,14 @@ function App() {
                     <label className="search-field">
                       <Search size={16} />
                       <input
-                        aria-label="Pangitaa sa imbentaryo"
+                        aria-label="Search inventory"
                         onChange={(event) => setQuery(event.target.value)}
-                        placeholder="Pangitaa ang butang o SKU"
+                        placeholder="Search by item or SKU"
                         value={query}
                       />
                       {query && (
                         <button
-                          aria-label="Tangtanga ang pangita"
+                          aria-label="Clear search"
                           onClick={() => setQuery("")}
                           type="button"
                         >
@@ -570,7 +544,7 @@ function App() {
                     <label className="category-select">
                       <Filter size={15} />
                       <select
-                        aria-label="Kategorya"
+                        aria-label="Category"
                         onChange={(event) => setCategory(event.target.value)}
                         value={category}
                       >
@@ -590,7 +564,7 @@ function App() {
                       type="button"
                     >
                       <SlidersHorizontal size={15} />
-                      {lowStockOnly ? "Ubos nga stock ra" : "Mga filter"}
+                      {lowStockOnly ? "Low stock only" : "Filters"}
                       {lowStockOnly && <X size={13} />}
                     </button>
                   </div>
@@ -601,11 +575,11 @@ function App() {
                   />
                   <div className="table-footer">
                     <span>
-                      Gipakita ang <strong>{filteredItems.length}</strong> sa{" "}
-                      <strong>{inventory.items.length}</strong> ka butang
+                      Showing <strong>{filteredItems.length}</strong> of{" "}
+                      <strong>{inventory.items.length}</strong> items
                     </span>
                     <span className="table-footer-right">
-                      Gipakita ang ihap sa yunit sa butang
+                      Counts shown in item’s stocking unit
                     </span>
                   </div>
                 </>
@@ -616,14 +590,14 @@ function App() {
               <aside className="activity-panel panel">
                 <div className="panel-heading activity-heading">
                   <div>
-                    <h2>Bag-ong kalihokan</h2>
-                    <p>Pinakabag-ong kausaban sa stock</p>
+                    <h2>Recent activity</h2>
+                    <p>Latest stock changes</p>
                   </div>
                   <button
-                    aria-label="Ablihi tanang kalihokan"
+                    aria-label="Open all activity"
                     className="icon-button quiet"
                     onClick={() => setPage("movements")}
-                    title="Ablihi tanang kalihokan"
+                    title="Open all activity"
                     type="button"
                   >
                     <ArrowRight size={17} />
@@ -648,11 +622,11 @@ function App() {
                         <div className="activity-copy">
                           <strong>{movementNames[movement.kind]}</strong>
                           <span>
-                            {item?.name ?? "Butang sa imbentaryo"} ·{" "}
+                            {item?.name ?? "Inventory item"} ·{" "}
                             {movement.reference}
                           </span>
                           <time>
-                            {formatBisayaDateTime(new Date(movement.createdAt))}
+                            {dateTime.format(new Date(movement.createdAt))}
                           </time>
                         </div>
                         <span className="activity-quantity">
@@ -667,7 +641,7 @@ function App() {
                   onClick={() => setPage("movements")}
                   type="button"
                 >
-                  Tan-awa tanang kalihokan <ArrowRight size={14} />
+                  View all activity <ArrowRight size={14} />
                 </button>
                 <div className="location-card">
                   <div className="location-card-top">
@@ -676,7 +650,7 @@ function App() {
                     </span>
                     <span className="location-card-status">
                       <span className="status-dot" />
-                      Naglihok
+                      Operational
                     </span>
                   </div>
                   <strong>{currentLocation.name}</strong>
@@ -684,11 +658,11 @@ function App() {
                   <div className="location-card-foot">
                     <span>
                       <MapPin size={13} />
-                      {currentLocation.binCount} ka puwesto sa pagtipig
+                      {currentLocation.binCount} storage bins
                     </span>
                     <button
-                      aria-label="Tan-awa ang detalye sa bodega"
-                      title="Tan-awa ang detalye sa bodega"
+                      aria-label="View facility details"
+                      title="View facility details"
                       type="button"
                     >
                       <ArrowRight size={14} />
@@ -700,12 +674,12 @@ function App() {
           </div>
           <footer className="page-footer">
             <span>
-              Stockroom <span className="footer-dot">·</span> Lugar sa
-              imbentaryo
+              Stockroom <span className="footer-dot">·</span> Inventory
+              workspace
             </span>
             <span>
-              Lokal nga datos pananglitan <span className="footer-dot">·</span>{" "}
-              Gitipigan niining browser
+              Local demo data <span className="footer-dot">·</span> Stored in
+              this browser
             </span>
           </footer>
         </div>
@@ -759,12 +733,12 @@ function InventoryTable({
       <table>
         <thead>
           <tr>
-            <th>BUTANG</th>
-            <th>KATEGORYA</th>
-            <th>NAA KARON</th>
-            <th>LIMIT SA PAG-ORDER</th>
-            <th>KAHIMTANG</th>
-            <th aria-label="Mga aksyon" />
+            <th>ITEM</th>
+            <th>CATEGORY</th>
+            <th>ON HAND</th>
+            <th>REORDER AT</th>
+            <th>STATUS</th>
+            <th aria-label="Actions" />
           </tr>
         </thead>
         <tbody>
@@ -776,7 +750,7 @@ function InventoryTable({
                 <td>
                   <div className="item-cell">
                     <span
-                      className={`item-thumbnail tone-${item.category === "Mga ekipo sa bodega" ? "orange" : item.category === "Mga gamit sa pagputos" ? "purple" : "green"}`}
+                      className={`item-thumbnail tone-${item.category === "Warehouse equipment" ? "orange" : item.category === "Packing supplies" ? "purple" : "green"}`}
                     >
                       <PackageCheck size={18} />
                     </span>
@@ -805,15 +779,15 @@ function InventoryTable({
                     className={low ? "stock-pill low" : "stock-pill healthy"}
                   >
                     <span />
-                    {low ? "Kinahanglan i-order" : "Anaa sa stock"}
+                    {low ? "Reorder" : "In stock"}
                   </span>
                 </td>
                 <td>
                   <button
-                    aria-label={`Dawata ang stock: ${item.name}`}
+                    aria-label={`Receive ${item.name}`}
                     className="row-action"
                     onClick={() => onReceive(item)}
-                    title={`Dawata ang stock: ${item.name}`}
+                    title={`Receive ${item.name}`}
                     type="button"
                   >
                     <Plus size={16} />
@@ -828,10 +802,8 @@ function InventoryTable({
                 <span>
                   <Search size={20} />
                 </span>
-                <strong>Walay katugbang nga imbentaryo</strong>
-                <small>
-                  Sulayi ang laing pangita o tangtanga ang mga filter.
-                </small>
+                <strong>No matching inventory</strong>
+                <small>Try a different search or clear your filters.</small>
               </td>
             </tr>
           )}
@@ -867,7 +839,7 @@ function MovementTable({
               <span>
                 {item?.name} · {movement.reference}
               </span>
-              <time>{formatBisayaDateTime(new Date(movement.createdAt))}</time>
+              <time>{dateTime.format(new Date(movement.createdAt))}</time>
             </div>
             <strong className="movement-quantity">
               +{movement.quantity} {item?.unit}
@@ -914,11 +886,11 @@ function ReceiveDialog({
             <span className="dialog-icon receive-icon">
               <ArrowDownToLine size={18} />
             </span>
-            <h2 id="receive-title">Dawata ang stock</h2>
-            <p>Irekord ang gidawat nga gidaghanon sa lokasyon sa bodega.</p>
+            <h2 id="receive-title">Receive stock</h2>
+            <p>Add incoming quantities to a warehouse location.</p>
           </div>
           <button
-            aria-label="Sirad-i"
+            aria-label="Close"
             className="icon-button quiet"
             onClick={onClose}
             type="button"
@@ -928,7 +900,7 @@ function ReceiveDialog({
         </div>
         <form onSubmit={onSubmit}>
           <label className="form-field">
-            <span>Butang</span>
+            <span>Item</span>
             <select
               name="itemId"
               onChange={(event) => setSelectedItemId(event.target.value)}
@@ -944,7 +916,7 @@ function ReceiveDialog({
           </label>
           {selectedItem && (
             <div className="form-context">
-              Stock karon sa napiling lokasyon{" "}
+              Current stock at selected location{" "}
               <strong>
                 {selectedItem.quantities[currentLocationId] ?? 0}{" "}
                 {selectedItem.unit}
@@ -953,7 +925,7 @@ function ReceiveDialog({
           )}
           <div className="form-row">
             <label className="form-field">
-              <span>Kadaghanon</span>
+              <span>Quantity</span>
               <div className="input-with-unit">
                 <input
                   autoFocus
@@ -964,11 +936,11 @@ function ReceiveDialog({
                   step="1"
                   type="number"
                 />
-                <span>{selectedItem?.unit ?? "piraso"}</span>
+                <span>{selectedItem?.unit ?? "each"}</span>
               </div>
             </label>
             <label className="form-field">
-              <span>Lokasyon</span>
+              <span>Location</span>
               <select
                 defaultValue={currentLocationId}
                 name="locationId"
@@ -984,17 +956,15 @@ function ReceiveDialog({
           </div>
           <label className="form-field">
             <span>
-              Reperensiya <small>Dili kinahanglan</small>
+              Reference <small>Optional</small>
             </span>
-            <input name="reference" placeholder="pananglitan: PO-10482" />
+            <input name="reference" placeholder="e.g. PO-10482" />
           </label>
           <div className="movement-preview">
             <span className="preview-icon">
               <ArrowDownToLine size={15} />
             </span>
-            <span>
-              Idugang kining pagdawat sa kasaysayan sa lihok sa stock.
-            </span>
+            <span>Receipt will be added to the stock movement history.</span>
           </div>
           <div className="dialog-actions">
             <button
@@ -1002,11 +972,11 @@ function ReceiveDialog({
               onClick={onClose}
               type="button"
             >
-              Kanselahon
+              Cancel
             </button>
             <button className="button button-primary" type="submit">
               <Check size={16} />
-              Kumpirmaha ang pagdawat
+              Confirm receipt
             </button>
           </div>
         </form>
@@ -1040,11 +1010,11 @@ function AddItemDialog({
             <span className="dialog-icon add-icon">
               <FilePlus2 size={18} />
             </span>
-            <h2 id="add-item-title">Idugang og butang sa imbentaryo</h2>
-            <p>Maghimo og rekord sa butang para sa imong bodega.</p>
+            <h2 id="add-item-title">Add inventory item</h2>
+            <p>Create an item record for your warehouse.</p>
           </div>
           <button
-            aria-label="Sirad-i"
+            aria-label="Close"
             className="icon-button quiet"
             onClick={onClose}
             type="button"
@@ -1055,11 +1025,11 @@ function AddItemDialog({
         <form onSubmit={onSubmit}>
           <div className="form-row">
             <label className="form-field">
-              <span>Ngalan sa butang</span>
+              <span>Item name</span>
               <input
                 autoFocus
                 name="name"
-                placeholder="pananglitan: Packing tape"
+                placeholder="e.g. Packing tape"
                 required
               />
             </label>
@@ -1070,26 +1040,26 @@ function AddItemDialog({
           </div>
           <div className="form-row">
             <label className="form-field">
-              <span>Kategorya</span>
+              <span>Category</span>
               <input
                 name="category"
-                placeholder="pananglitan: Mga gamit sa pagputos"
+                placeholder="e.g. Packing supplies"
                 required
               />
             </label>
             <label className="form-field">
-              <span>Yunit sa stock</span>
-              <select defaultValue="piraso" name="unit">
-                <option value="piraso">Piraso</option>
-                <option value="kahon">Kahon</option>
-                <option value="kaso">Kaso</option>
-                <option value="rolyo">Rolyo</option>
+              <span>Stocking unit</span>
+              <select defaultValue="each" name="unit">
+                <option value="each">Each</option>
+                <option value="box">Box</option>
+                <option value="case">Case</option>
+                <option value="roll">Roll</option>
               </select>
             </label>
           </div>
           <div className="form-row">
             <label className="form-field">
-              <span>Limit sa pag-order</span>
+              <span>Reorder at</span>
               <input
                 defaultValue="10"
                 min="0"
@@ -1099,9 +1069,9 @@ function AddItemDialog({
               />
             </label>
             <label className="form-field">
-              <span>Gasto kada yunit</span>
+              <span>Unit cost</span>
               <div className="input-with-unit">
-                <span className="prefix-unit">$</span>
+                <span className="prefix-unit">₱</span>
                 <input
                   defaultValue="0"
                   min="0"
@@ -1119,11 +1089,11 @@ function AddItemDialog({
               onClick={onClose}
               type="button"
             >
-              Kanselahon
+              Cancel
             </button>
             <button className="button button-primary" type="submit">
               <Plus size={16} />
-              Idugang
+              Add item
             </button>
           </div>
         </form>
